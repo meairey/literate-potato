@@ -14,3 +14,7 @@ This is primarily conducted through the use of a changepoint analysis through th
 
 The data folder is included in the `.gitignore`. Please contact `ma2276@cornell.edu` with questions about data availability. 
 
+## Repository structure
+
+The `Analysis` folder contains the `.R` script for generating changepoints and regressions. The data that goes into this script is generated in the `Documentation_DataCleaning` folder and uses functions as created in the `Function_Source_Files` folder. Graphics for the manuscript are kept in the `Graphics` folder. The `Documentation_DataCleaning` folder also contains information that is included in the supplemental section of this manuscript regarding sampling frequency and standard protocol deviations.
+

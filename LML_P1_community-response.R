@@ -1,140 +1,31 @@
 
-### LML Analysis -- Paper 1
+### LML Analysis
 
 
 ### Libraries --------------
-library(lattice)
-library(MASS)
-library(dplyr)
 require(pscl) # alternatively can use package ZIM for zero-inflated 
 library(lmtest)
-library(dplyr)
-library(tidyr)
 library(tidyverse)
-library(vegan)
-library(RColorBrewer)
-library(ggridges)
 library(ecp)
 library(gridExtra)
 library(ggnewscale)
 `%nin%` = Negate(`%in%`) # sets up a way to exclude if in a string
 
-## Functions source -----------
-# This is just setup at the project working directory. Use option in upper right corner of R to get into project directory. For example, on my computer,its stored in my family one-drive
-setwd("C:/Users/monta/OneDrive - Airey Family/GitHub/LML_SMB_removal")
+## Load in data
 
-### Note - this source file will upload the data files. But you need to make sure to correct the source location for those data files for this to work...
-source("Function_Source_Files/AFRP_Functions.R")
+## CPUE data frame
+CPUE.w.sec = read.csv("Data/CPUE.w.sec.csv",header = T) %>%
+  column_to_rownames(var = "X")
 
-### Data -------------------
+## All boat electrofishing data 
 
-#sample = read.csv("MA2276_Code//Data/FISH_SAMPLE_edited.csv")
-sample = read.csv("../AFRP/MA2276_Code/Data/FISH_SAMPLE_2022_editedsitenumbers.csv")
+BEF_data = read.csv("Data/BEF_Data.csv", header = T) %>%
+  column_to_rownames(var = "X")
 
-
-
-BEF_data_unfiltered =left_join(fish, sample, by = "YSAMP_N") %>% 
-  left_join(sites, by = "SITE_N") %>% 
-  left_join(shoreline_length, by = "SITE_N") %>%
-  separate(SITE_N,  into = c("GEAR", "WATER","SITE")) %>%
-  filter(WATER == "LML" & GEAR == "BEF"& GEAR_CODE == "NAF" & YEAR < 2020 & MONTH %in% c(5,6)) %>%
-  mutate(SITE = as.character(SITE))
-
-## Fixing site issues 
-
-
-###bef_unfiltered_saved = BEF_data_unfiltered
-#BEF_data_unfiltered = bef_unfiltered_saved
-
-site_bin = c(1,4,5,9,13,16,18, 21, 23,27,31) ## for the simulations
-
-post_2002 = BEF_data_unfiltered %>% filter(YEAR == 2005) %>% select(SITE) %>% unique() %>% mutate(SITE_num = parse_number(SITE)) %>% 
-  mutate(site_bin = .bincode(SITE_num, site_bin)) ## Create matrices for each cluster of years that were sampled in one way or another
-
-
-BEF_1998 = BEF_data_unfiltered %>%
-  filter(YEAR == 1998) %>% 
-  select(SITE) %>% unique() %>% 
-  mutate(site_bin = c(1,1,1,1,2,3,3,3,4,4,5,7,8,11,10,10,4,5)) %>% 
-  mutate(SITE_num = c(1:18)) 
-  
-  
-bef_1998 = BEF_data_unfiltered %>% filter(YEAR == 1998) %>% 
-  left_join(BEF_1998)
-
-
-bef_1999 = BEF_data_unfiltered %>%
-  filter(YEAR == 1999) %>% 
-  dplyr::select(SITE) %>% unique() %>% 
-  filter(SITE !="NA") %>% 
-  mutate(site_bin = c(2,3,4,1,5,7,8, 10)) %>% 
-  mutate(SITE_num = c(1:8))
-
-BEF_1999 = BEF_data_unfiltered %>% filter(YEAR == 1999) %>% 
-  left_join(bef_1999)
-
-site_matrix = rbind(bef_1999, BEF_1998, post_2002) %>%
-  as.data.frame()
-
-
-BEF_data_2002 = BEF_data_unfiltered %>%
-  filter(YEAR > 1999) %>%
-  left_join(post_2002)
-
-BEF_data_unfiltered = left_join(BEF_data_unfiltered, site_matrix) %>% ## Make sure to use this BEF_data_unfiltered for final graphs
-  mutate(SITE_cat = case_when(YEAR %nin% c(1998, 1999) ~ parse_number(SITE),
-                              YEAR %in% c(1998, 1999) ~ as.numeric(SITE_num))) %>%
-  dplyr::select(-SITE) %>% 
-  rename(SITE = SITE_cat) %>%
-  filter(SITE != "NA") 
-
-
-
-
-
-
-BEF_data_unfiltered = rbind(bef_1998, BEF_1999, BEF_data_2002) %>%
-  mutate(SITE_cat = case_when(YEAR %nin% c(1998, 1999) ~ parse_number(SITE),
-                              YEAR %in% c(1998, 1999) ~ as.numeric(SITE_num))) %>%
-  dplyr::select(-SITE) %>% 
-  rename(SITE = SITE_cat) %>%
-  filter(SITE != "NA")
-
-
-
-# Removing rare + stocked taxa ------------ 
-
-## Taxa get removed if they are rare or if they are stocked given 
-
-
-
-rare_threashold = 50 ## change this based on preference. Here it is filtering out rare fish (NRD and BND)
-
-rare = BEF_data_unfiltered %>% ## This defines rare species 
-  group_by(SPECIES) %>% 
-  summarise(frequency = n()) %>% 
-  filter(frequency < rare_threashold)
-
-stocked = c("LLS", "RT", "ST") ## Stocked fish in LML to be excluded from analysis
-
-
-BEF_data = BEF_data_unfiltered%>%
-  filter(SPECIES %nin% c(stocked, rare$SPECIES)) %>% 
-  filter(YEAR < 2020) %>% 
-  filter(SPECIES != "SMB" | YEAR != 2000 | DAY_N < 160) %>% 
-  filter(YEAR != 2002) #%>% 
-  #filter(YEAR != 1999)## Filter out BEF SMB data from the year 2000 that's later than DAY_N 160. Change this around depending on how you want to filter 2000... 
-  
-
-BEF_data %>%
-  filter(SPECIES == "SMB") %>%
-  select(SPECIES, YEAR, DAY_N) %>% 
-  unique()
-
-
-
+## Setting up species names and colors for graphing
 ## LML 
 species_names = c("brown bullhead", "creek chub", "common shiner","lake trout","central mudminnow", "pumpkinseed", "rainbow smelt", "round whitefish", "smallmouth bass", "slimy sculpin", "white sucker")
+
 
 codes = data.frame((species_codes = unique(BEF_data$SPECIES))) %>% 
   arrange(species_codes)
@@ -145,27 +36,10 @@ species = codes$species
 # Colorblind pallete
 cbbPalette <- c("#000000",  "#56B4E9", "#D55E00","#009E73","#CEC6C6", "#0072B2","#E69F00","#F0E442",  "#CC79A7")
 
-## FBL 
-#species_names = c("Creek Chub","Lake Trout", "Central Mudminnow", "Smallmouth Bass", "Brook Trout", "White Sucker")
-#species_names_fall=   c("Creek Chub", "Central Mudminnow", "Smallmouth Bass", "White Sucker")
 
 # CPUE changepoint ------------------------------
 
 #### Data setup ---------------------
-#CPUE.w.sec = rbind(CPUE.w.sec_all, bef_1999)
-
-CPUE.w.sec = ((CPUE_wide_seconds(BEF_data) %>%
-                 unite("Group", c(YEAR, SITE)) %>% 
-                 column_to_rownames(., var = "Group") %>% 
-                 mutate(sumrow = rowSums(.)) %>%
-                 filter(sumrow>0) %>%
-                 dplyr::select(-sumrow)))
-
-write.csv(CPUE.w.sec, file="CPUE.w.sec.csv")
-#dev.off()
-
-CPUE.w.sec.a = ((CPUE_wide_seconds_avg(BEF_data) %>% 
-                   column_to_rownames(., var = "YEAR")))
 
 v = CPUE.w.sec %>% 
   mutate(y_s = rownames(CPUE.w.sec)) %>%
@@ -181,10 +55,7 @@ v = CPUE.w.sec %>%
   dplyr::select(-site) %>%
   mutate(value = value * 60 * 60 )
 
-# abundance for bass before vs. after
 
-
-mean(CPUE.w.sec.a$SMB[4:21]) / mean(CPUE.w.sec.a$SMB[1:3])
 
 #### Graphing Loop --------------------------
 graph_list = list() # Create list of graphs for plotting
@@ -217,7 +88,7 @@ for(i in 1:length(codes$species)){
   print(output$p.values)
   
   # Format data
-  v_mod = left_join(v, (data.frame(Year = rownames(CPUE.w.sec.a), 
+  v_mod = left_join(v, (data.frame(Year = as.character(c(1998:2019)[c(-5)]), 
                    color = output$cluster)))
 
   
@@ -234,7 +105,7 @@ for(i in 1:length(codes$species)){
     #cluster_means = left_join(dat_graph, mean_cpue) # combining the clusters with a mean cpue for that cluster
 
     cluster_line = left_join(dat_graph, mean_cpue) %>%
-      select(Year, color, mean) %>% 
+      dplyr::select(Year, color, mean) %>% 
       unique()
 
     graph_list[[i]] = ggplot() + 
@@ -406,7 +277,7 @@ cp_data %>% ggplot(aes(x = year,
   theme_minimal() + 
   geom_vline(xintercept = 2000, linetype = 2)
 ## Write a PDF 
-pdf(file = paste("C:/Users/monta/OneDrive - Airey Family/GitHub/AFRP/MA2276_Code/Graphics/LMLP1/max_length_CPUE_CP.pdf", sep = ""),   # The directory you want to save the file in
+#pdf(file = paste("C:/Users/monta/OneDrive - Airey Family/GitHub/AFRP/MA2276_Code/Graphics/LMLP1/max_length_CPUE_CP.pdf", sep = ""),   # The directory you want to save the file in
     width = 6, # The width of the plot in inches
     height = 4)
   
@@ -615,9 +486,9 @@ species_length_changepoint %>%
 
 
 
-pdf(file = paste("C:/Users/monta/OneDrive - Airey Family/GitHub/AFRP/MA2276_Code/Graphics/LMLP1/max_length_LENGTH_CP.pdf", sep = ""),   # The directory you want to save the file in
-    width = 6, # The width of the plot in inches
-    height = 4)
+#pdf(file = paste("C:/Users/monta/OneDrive - Airey Family/GitHub/AFRP/MA2276_Code/Graphics/LMLP1/max_length_LENGTH_CP.pdf", sep = ""),   # The directory you want to save the file in
+    #width = 6, # The width of the plot in inches
+   # height = 4)
 
 dev.off()
 
@@ -662,9 +533,6 @@ BEF_data %>%
 
 c.data = v %>% select(Year, Species,ID,  value) %>% rename(year = Year) %>% separate(ID, into = c("site", "sp.del")) %>% select(-sp.del) %>% rename(species = Species) %>% rename(CPUE = value)
 
-
-
-Build the means and standard deviations into this table... ## Text so i don't foorget to do this
 wilcox_list = list()
 
 for(i in 1:length(species)){
@@ -712,7 +580,7 @@ wilcox_table = rbind(wilcox_list[[1]],
       ) %>% as.data.frame() %>% mutate(p.value = round(p.value, digits = 4)) %>% 
   mutate(p.value = replace(p.value, p.value < 0.0001, "<0.0001")) 
 wilcox_table
-write.csv(wilcox_table, file = "wilcox_table_CPUE.csv")
+#write.csv(wilcox_table, file = "wilcox_table_CPUE.csv")
 
 ## ------------------------- Wilcox Length ---------------------
 
@@ -771,40 +639,7 @@ wilcox_table = rbind(wilcox_list_length[[1]],
   
 
 
-write.csv(wilcox_table, file = "wilcox_table_length.csv")
+#write.csv(wilcox_table, file = "wilcox_table_length.csv")
 
 
 ### end ------------------------------------------------
-
-
-
-
-
-BEF_data %>% group_by(SPECIES, YEAR) %>% summarize(max = max(LENGTH, na.rm=T)) %>%
-  ggplot(aes(x = YEAR, y = max, col = SPECIES)) + geom_point() + geom_smooth(method= "lm", se = F)
-  
-
-BEF_data %>% group_by(SPECIES, YEAR) %>% summarize(min = min(LENGTH, na.rm=T)) %>%
-  ggplot(aes(x = YEAR, y = min, col = SPECIES)) + geom_point() + geom_smooth(method= "lm", se = F)
-
-
-BEF_data %>% group_by(SPECIES) %>% summarize(max = max(LENGTH, na.rm= T))
-BEF_data %>% group_by(SPECIES) %>% summarize(min = min(LENGTH, na.rm= T))
-
-
-
-
-
-
-
-
-
-
-
-v %>% separate(ID, into = c("site", "Species")) %>% filter(Year == 2021) %>% mutate(site= as.numeric(site)) %>% filter(site %in% c(14,15,16,18,19,20,21,22)) %>%
-  mutate(site = as.factor(site)) %>%
-  ggplot(aes(x = site, y = value, fill = Species)) + geom_col() +
-  theme(axis.text.x = element_text(angle = 90)) +ylab("CPUE ind/hour")
-
-
-
